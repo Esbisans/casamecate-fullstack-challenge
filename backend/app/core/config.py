@@ -18,7 +18,7 @@ class Settings(BaseSettings):
         env_nested_delimiter="__",
         env_ignore_empty=True,
         validate_default=True,
-        extra="forbid",
+        extra="ignore",
     )
 
     app: AppConfig = AppConfig()
