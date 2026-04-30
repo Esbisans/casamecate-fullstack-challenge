@@ -5,6 +5,8 @@ description = "Backend API for Casa Mecate fullstack challenge"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "asyncpg>=0.31.0",
     "fastapi[standard]>=0.136.1",
     "pydantic-settings>=2.14.0",
+    "sqlalchemy[asyncio]>=2.0.49",
 ]

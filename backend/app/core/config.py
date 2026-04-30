@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic import BaseModel, PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
@@ -9,6 +9,10 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 class AppConfig(BaseModel):
     name: str = "Casa Mecate API"
+
+
+class DatabaseConfig(BaseModel):
+    url: PostgresDsn
 
 
 class Settings(BaseSettings):
@@ -22,6 +26,7 @@ class Settings(BaseSettings):
     )
 
     app: AppConfig = AppConfig()
+    database: DatabaseConfig
 
 
 @lru_cache
