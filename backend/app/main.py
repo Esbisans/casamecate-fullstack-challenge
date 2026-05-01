@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
@@ -9,6 +10,9 @@ from app.core.config import get_settings
 from app.core.database import engine
 from app.core.dependencies import SessionDep
 from app.flights.router import router as flights_router
+from app.stackoverflow import service as so_service
+from app.stackoverflow.client import StackOverflowClient
+from app.stackoverflow.router import router as stackoverflow_router
 
 settings = get_settings()
 
@@ -19,7 +23,16 @@ def custom_generate_unique_id(route: APIRoute) -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    yield
+    async with httpx.AsyncClient(
+        timeout=10.0,
+        headers={"User-Agent": "casa-mecate-backend/0.1"},
+    ) as http_client:
+        app.state.so_client = StackOverflowClient(
+            http_client=http_client,
+            api_url=str(settings.stackoverflow.api_url),
+        )
+        await so_service.print_summary(app.state.so_client)
+        yield
     await engine.dispose()
 
 
@@ -39,6 +52,7 @@ app.add_middleware(
 )
 
 app.include_router(flights_router)
+app.include_router(stackoverflow_router)
 
 
 @app.get("/health")
