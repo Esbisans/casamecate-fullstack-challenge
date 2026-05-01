@@ -1,12 +1,13 @@
 from contextlib import asynccontextmanager
-from typing import Annotated
 
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.core.database import engine, get_session
+from app.core.database import engine
+from app.core.dependencies import SessionDep
+from app.flights.router import router as flights_router
 
 settings = get_settings()
 
@@ -19,8 +20,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.app.name, lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
-SessionDep = Annotated[AsyncSession, Depends(get_session)]
+app.include_router(flights_router)
 
 
 @app.get("/health")
