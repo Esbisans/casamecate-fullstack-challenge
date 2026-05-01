@@ -19,5 +19,24 @@ services:
       retries: 5
       start_period: 30s
 
+  backend:
+    build:
+      context: ./backend
+    container_name: casamecate-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE__URL: postgresql+asyncpg://${POSTGRES_USER:-casamecate}:${POSTGRES_PASSWORD:-casamecate_dev_password}@db:5432/${POSTGRES_DB:-casamecate}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
 volumes:
   postgres_data:
