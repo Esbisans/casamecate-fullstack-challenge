@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import ColumnElement, extract, func, select
+from sqlalchemy import ColumnElement, Select, extract, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.flights.models import Airline, Airport, Flight
@@ -13,77 +13,52 @@ def _year_filter(year: int | None) -> tuple[ColumnElement[bool], ...]:
     return (extract("year", Flight.date) == year,) if year is not None else ()
 
 
-async def top_airports_by_movement(
-    session: AsyncSession, year: int | None = None
-) -> list[tuple[str, int]]:
-    """Return airports tied for the highest flight count, optionally filtered by year."""
-    max_count = (
-        select(func.count(Flight.id))
-        .where(*_year_filter(year))
-        .group_by(Flight.airport_id)
-        .order_by(func.count(Flight.id).desc())
-        .limit(1)
-        .scalar_subquery()
-    )
+def _apply_limit(stmt: Select, limit: int) -> Select:
+    """Apply a LIMIT clause unless limit=0 (caller wants the full ranking)."""
+    return stmt.limit(limit) if limit > 0 else stmt
 
+
+async def top_airports_by_movement(
+    session: AsyncSession, year: int | None = None, limit: int = 1
+) -> list[tuple[str, int]]:
+    """Return airports ranked by flight count (descending), optionally filtered by year."""
     stmt = (
         select(Airport.name, func.count(Flight.id).label("total"))
         .join(Flight, Flight.airport_id == Airport.id)
         .where(*_year_filter(year))
         .group_by(Airport.id, Airport.name)
-        .having(func.count(Flight.id) == max_count)
-        .order_by(Airport.name)
+        .order_by(func.count(Flight.id).desc(), Airport.name)
     )
-    result = await session.execute(stmt)
+    result = await session.execute(_apply_limit(stmt, limit))
     return result.all()
 
 
 async def top_airlines_by_flights(
-    session: AsyncSession, year: int | None = None
+    session: AsyncSession, year: int | None = None, limit: int = 1
 ) -> list[tuple[str, int]]:
-    """Return airlines tied for the highest flight count, optionally filtered by year."""
-    max_count = (
-        select(func.count(Flight.id))
-        .where(*_year_filter(year))
-        .group_by(Flight.airline_id)
-        .order_by(func.count(Flight.id).desc())
-        .limit(1)
-        .scalar_subquery()
-    )
-
+    """Return airlines ranked by flight count (descending), optionally filtered by year."""
     stmt = (
         select(Airline.name, func.count(Flight.id).label("total"))
         .join(Flight, Flight.airline_id == Airline.id)
         .where(*_year_filter(year))
         .group_by(Airline.id, Airline.name)
-        .having(func.count(Flight.id) == max_count)
-        .order_by(Airline.name)
+        .order_by(func.count(Flight.id).desc(), Airline.name)
     )
-    result = await session.execute(stmt)
+    result = await session.execute(_apply_limit(stmt, limit))
     return result.all()
 
 
 async def top_days(
-    session: AsyncSession, year: int | None = None
+    session: AsyncSession, year: int | None = None, limit: int = 1
 ) -> list[tuple[datetime.date, int]]:
-    """Return days tied for the highest flight count, optionally filtered by year."""
-    max_count = (
-        select(func.count(Flight.id))
-        .where(*_year_filter(year))
-        .group_by(Flight.date)
-        .order_by(func.count(Flight.id).desc())
-        .limit(1)
-        .scalar_subquery()
-    )
-
+    """Return days ranked by flight count (descending), optionally filtered by year."""
     stmt = (
         select(Flight.date, func.count(Flight.id).label("total"))
         .where(*_year_filter(year))
         .group_by(Flight.date)
-        .having(func.count(Flight.id) == max_count)
-        .order_by(Flight.date)
+        .order_by(func.count(Flight.id).desc(), Flight.date)
     )
-    result = await session.execute(stmt)
+    result = await session.execute(_apply_limit(stmt, limit))
     return result.all()
 
 
